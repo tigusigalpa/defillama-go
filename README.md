@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/tigusigalpa/defillama-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tigusigalpa/defillama-go/actions/workflows/ci.yml)
 [![Tests](https://github.com/tigusigalpa/defillama-go/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/tigusigalpa/defillama-go/actions/workflows/test.yml)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![CodeQL](https://github.com/tigusigalpa/defillama-go/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/tigusigalpa/defillama-go/actions/workflows/codeql.yml)
 [![Codecov](https://codecov.io/gh/tigusigalpa/defillama-go/graph/badge.svg)](https://codecov.io/gh/tigusigalpa/defillama-go)
@@ -151,6 +151,35 @@ This only changes routing for the 31 Free endpoints that have an official Pro ma
 
 ## Common tasks
 
+The snippets in this section assume you already have a `client` and a `ctx`,
+as in the first example. They fit inside a function that returns an `error`.
+Examples marked **Pro** need a client configured with `WithAPIKey`.
+
+### Explore a protocol's TVL (Free)
+
+The protocol detail endpoint has a flexible response shape. Start with the
+typed accessors, then inspect `Raw` when you need a field the SDK does not
+model yet:
+
+```go
+protocol, err := client.TVL().GetProtocol(ctx, "aave")
+if err != nil {
+	return err
+}
+fmt.Printf("%s (%s): %d TVL samples\n",
+	protocol.Name(), protocol.Slug(), len(protocol.TVLHistory()))
+
+if ethereum, ok := protocol.ChainTVLs()["Ethereum"]; ok {
+	fmt.Printf("Ethereum breakdown: %v\n", ethereum)
+}
+if description, ok := protocol.Raw["description"].(string); ok {
+	fmt.Println(description)
+}
+```
+
+`ChainTVLs()` returns raw per-chain values rather than assuming every chain has
+the same shape. Check types before using fields from `Raw` in calculations.
+
 ### Ask for a historical token price
 
 Use DefiLlama token identifiers in the `chain:address` form; CoinGecko assets use `coingecko:<id>`.
@@ -170,6 +199,32 @@ if !ok {
 }
 fmt.Println(eth.Price)
 ```
+
+### List stablecoins with prices (Free)
+
+`GetStablecoins` returns typed records. Request prices explicitly, and keep
+the output small when you're exploring a large list:
+
+```go
+stablecoins, err := client.Stablecoins().GetStablecoins(ctx,
+	&defillama.StablecoinsListOptions{
+		IncludePrices: defillama.Ptr(true),
+	},
+)
+if err != nil {
+	return err
+}
+for i, coin := range stablecoins {
+	if i >= 3 {
+		break
+	}
+	fmt.Printf("%s (%s): %d chains, price %.4f\n",
+		coin.Name, coin.Symbol, len(coin.Chains), coin.Price)
+}
+```
+
+When an optional field's presence matters, inspect `coin.Raw` instead of
+treating a zero-valued Go field as proof that the API returned zero.
 
 ### Filter earn pools
 
@@ -221,6 +276,55 @@ if err != nil {
 }
 _ = overview
 ```
+
+### Inspect real-world assets (Pro)
+
+RWA assets have typed fields for common data and a `Raw` map for additional
+fields returned by the API:
+
+```go
+assets, err := client.RWA().GetCurrentAssets(ctx)
+if err != nil {
+	return err
+}
+for i, asset := range assets {
+	if i >= 3 {
+		break
+	}
+	fmt.Printf("%s (%s), issuer: %s\n", asset.AssetName, asset.Ticker, asset.Issuer)
+}
+if len(assets) > 0 {
+	fmt.Printf("first asset's complete payload: %v\n", assets[0].Raw)
+}
+```
+
+### Filter recent bridge transactions (Pro)
+
+Bridge IDs come from `client.Bridges().GetBridges(ctx, nil)`. After choosing
+one, pass Unix timestamps and a bounded result limit:
+
+```go
+bridgeID := int64(1) // Replace with an ID from GetBridges.
+end := time.Now().UTC()
+start := end.Add(-24 * time.Hour)
+
+transactions, err := client.Bridges().GetBridgeTransactions(ctx, bridgeID,
+	&defillama.BridgeTransactionsOptions{
+		Starttimestamp: defillama.Ptr(start.Unix()),
+		Endtimestamp:   defillama.Ptr(end.Unix()),
+		Sourcechain:    defillama.Ptr("Ethereum"),
+		Limit:          defillama.Ptr(int64(100)),
+	},
+)
+if err != nil {
+	return err
+}
+fmt.Printf("bridge response fields: %d\n", len(transactions))
+```
+
+The transaction response is `map[string]any`; inspect its fields before
+converting them to application-specific types. `Limit` must be between 1 and
+6000, and the SDK rejects values outside that range before sending a request.
 
 ## Handle errors deliberately
 
@@ -301,6 +405,18 @@ For all 132 operations, parameter names, and links to the official reference, se
 | `WithPreferProForFree(true)` | `false` | Routes Free calls to their official Pro equivalents when a key is present. |
 
 `WithTimeout` does not alter a custom client supplied through `WithHTTPClient`; configure that client's timeouts yourself. `WithBaseURLsForTesting` exists for tests and advanced local mock-server setups, not ordinary production configuration.
+
+For example, to use an HTTP client already configured by your application
+(requires the `net/http` and `time` imports):
+
+```go
+httpClient := &http.Client{Timeout: 8 * time.Second}
+client, err := defillama.New(defillama.WithHTTPClient(httpClient))
+if err != nil {
+	return err
+}
+// Reuse client for subsequent requests; it is safe to share across goroutines.
+```
 
 ## Response precision and compatibility
 
