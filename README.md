@@ -13,6 +13,9 @@
 
 `defillama-go` is a small, idiomatic Go client for the [DefiLlama Free and Pro APIs](https://defillama.com/). It gives an application one consistent, context-aware interface for protocol TVL, token prices, yields, stablecoins, fees, bridges, RWA, equities, and the rest of the documented API surface.
 
+> [!TIP]
+> 📚 **Explore the full documentation:** [DefiLlama Go Wiki →](https://github.com/tigusigalpa/defillama-go/wiki)
+
 - All **132 GET operations** in the included OpenAPI snapshot are available: 31 Free and 101 Pro.
 - The runtime uses only Go's standard library. Supply your own `*http.Client` when you need a proxy, custom transport, tracing, or different timeout policy.
 - `New` performs no network request, every network method accepts `context.Context`, and one client is safe to share between goroutines.
