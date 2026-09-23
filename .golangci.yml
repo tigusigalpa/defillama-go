@@ -6,12 +6,12 @@ linters:
     - govet
     - staticcheck
     - errcheck
-    - gofmt
-    - goimports
     - ineffassign
     - unused
     - misspell
     - revive
 
-issues:
-  exclude-rules: []
+formatters:
+  enable:
+    - gofmt
+    - goimports

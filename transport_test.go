@@ -63,7 +63,7 @@ func (l *requestLog) all() []*http.Request {
 // okJSON responds with JSON null, which decodes cleanly into any target type.
 func okJSON(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprint(w, `null`)
+	_, _ = fmt.Fprint(w, `null`)
 }
 
 func TestHeadersSent(t *testing.T) {
@@ -232,9 +232,9 @@ func TestEnumValidation(t *testing.T) {
 func strPtr(s string) *string { return &s }
 
 func TestNotFound(t *testing.T) {
-	_, c, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+	_, c, _ := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprint(w, `{"error":"nope"}`)
+		_, _ = fmt.Fprint(w, `{"error":"nope"}`)
 	})
 	var nf *NotFoundError
 	_, err := c.TVL().GetProtocol(context.Background(), "zzz")
@@ -247,7 +247,7 @@ func TestNotFound(t *testing.T) {
 }
 
 func TestRateLimitRetryAfter(t *testing.T) {
-	_, c, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+	_, c, _ := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Retry-After", "42")
 		w.WriteHeader(http.StatusTooManyRequests)
 	})
@@ -262,9 +262,9 @@ func TestRateLimitRetryAfter(t *testing.T) {
 }
 
 func TestServerError(t *testing.T) {
-	_, c, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+	_, c, _ := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
-		fmt.Fprint(w, `bad gateway`)
+		_, _ = fmt.Fprint(w, `bad gateway`)
 	})
 	var ae *APIError
 	_, err := c.TVL().GetProtocols(context.Background())
@@ -277,8 +277,8 @@ func TestServerError(t *testing.T) {
 }
 
 func TestMalformedJSON(t *testing.T) {
-	_, c, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `not json{`)
+	_, c, _ := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprint(w, `not json{`)
 	})
 	var de *DecodeError
 	_, err := c.TVL().GetProtocols(context.Background())
@@ -288,8 +288,8 @@ func TestMalformedJSON(t *testing.T) {
 }
 
 func TestTrailingGarbageIsDecodeError(t *testing.T) {
-	_, c, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `[] not-json`)
+	_, c, _ := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprint(w, `[] not-json`)
 	})
 	_, err := c.TVL().GetProtocols(context.Background())
 	var decodeErr *DecodeError
@@ -299,7 +299,7 @@ func TestTrailingGarbageIsDecodeError(t *testing.T) {
 }
 
 func TestAPIKeyRedaction(t *testing.T) {
-	_, c, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+	_, c, _ := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(500)
 	})
 	_, err := c.Emissions().GetEmissions(context.Background())
@@ -320,10 +320,10 @@ func TestAPIKeyRedaction(t *testing.T) {
 }
 
 func TestAPIErrorRedactsResponseDiagnostics(t *testing.T) {
-	_, c, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+	_, c, _ := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Location", "https://example.test/SECRET_TEST_KEY_1/next")
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, `{"detail":"SECRET_TEST_KEY_1"}`)
+		_, _ = fmt.Fprint(w, `{"detail":"SECRET_TEST_KEY_1"}`)
 	})
 	_, err := c.Emissions().GetEmissions(context.Background())
 	var apiErr *APIError
@@ -393,7 +393,7 @@ func TestProRedirectCannotSendKeyToAnotherOrigin(t *testing.T) {
 	}))
 	t.Cleanup(other.Close)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Location", other.URL+"/SECRET_TEST_KEY_1/api/emissions")
 		w.WriteHeader(http.StatusFound)
 	}))
@@ -424,7 +424,7 @@ func TestProRedirectOnSameOriginStillWorks(t *testing.T) {
 			http.Redirect(w, r, "/SECRET_TEST_KEY_1/api/emissions/latest", http.StatusFound)
 			return
 		}
-		fmt.Fprint(w, `[]`)
+		_, _ = fmt.Fprint(w, `[]`)
 	}))
 	t.Cleanup(server.Close)
 	c, err := New(
@@ -440,9 +440,9 @@ func TestProRedirectOnSameOriginStillWorks(t *testing.T) {
 }
 
 func TestFreeErrorBodyIsNotChangedByUnusedProKey(t *testing.T) {
-	_, c, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+	_, c, _ := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "bad parameter")
+		_, _ = fmt.Fprint(w, "bad parameter")
 	}, WithAPIKey("a"))
 	_, err := c.TVL().GetProtocols(context.Background())
 	var apiErr *APIError
@@ -456,12 +456,12 @@ func TestFreeErrorBodyIsNotChangedByUnusedProKey(t *testing.T) {
 
 func TestRetryOn5xx(t *testing.T) {
 	var calls atomic.Int32
-	_, c, log := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+	_, c, log := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		if calls.Add(1) == 1 {
 			w.WriteHeader(503)
 			return
 		}
-		fmt.Fprint(w, `[]`)
+		_, _ = fmt.Fprint(w, `[]`)
 	}, WithRetryPolicy(RetryPolicy{MaxAttempts: 3, BaseDelay: time.Millisecond}))
 	if _, err := c.TVL().GetProtocols(context.Background()); err != nil {
 		t.Fatal(err)
@@ -511,7 +511,7 @@ func TestRetryOnlyTransientTransportErrors(t *testing.T) {
 }
 
 func TestNoRetryOn404(t *testing.T) {
-	_, c, log := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+	_, c, log := testServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(404)
 	}, WithRetryPolicy(RetryPolicy{MaxAttempts: 3, BaseDelay: time.Millisecond}))
 	var nf *NotFoundError

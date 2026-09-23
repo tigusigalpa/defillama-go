@@ -10,7 +10,7 @@ type EcosystemService struct {
 	t *transport
 }
 
-// GetCategories Overview of all categories accross all protocols
+// GetCategories Overview of all categories across all protocols
 // See: https://api-docs.defillama.com/#tag/main-page/get/api/categories
 func (s *EcosystemService) GetCategories(ctx context.Context) (map[string]any, error) {
 	query := url.Values{}
@@ -22,7 +22,7 @@ func (s *EcosystemService) GetCategories(ctx context.Context) (map[string]any, e
 	return raw, nil
 }
 
-// GetForks Overview of all forks accross all protocols
+// GetForks Overview of all forks across all protocols
 // See: https://api-docs.defillama.com/#tag/main-page/get/api/forks
 func (s *EcosystemService) GetForks(ctx context.Context) (map[string]any, error) {
 	query := url.Values{}
@@ -34,7 +34,7 @@ func (s *EcosystemService) GetForks(ctx context.Context) (map[string]any, error)
 	return raw, nil
 }
 
-// GetOracles Overview of all oracles accross all protocols
+// GetOracles Overview of all oracles across all protocols
 // See: https://api-docs.defillama.com/#tag/main-page/get/api/oracles
 func (s *EcosystemService) GetOracles(ctx context.Context) (map[string]any, error) {
 	query := url.Values{}

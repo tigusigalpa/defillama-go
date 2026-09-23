@@ -130,9 +130,9 @@ func (t *transport) doOnce(ctx context.Context, u, redacted string, keyInURL boo
 	if keyInURL {
 		// net/http follows redirects by default. A Pro request has its key in
 		// the URL, so never follow a redirect to another origin.
-		copy := *client
-		previousCheck := copy.CheckRedirect
-		copy.CheckRedirect = func(next *http.Request, via []*http.Request) error {
+		redirectClient := *client
+		previousCheck := redirectClient.CheckRedirect
+		redirectClient.CheckRedirect = func(next *http.Request, via []*http.Request) error {
 			if len(via) > 0 && !sameOrigin(next.URL, via[0].URL) {
 				return http.ErrUseLastResponse
 			}
@@ -144,7 +144,7 @@ func (t *transport) doOnce(ctx context.Context, u, redacted string, keyInURL boo
 			}
 			return nil
 		}
-		client = &copy
+		client = &redirectClient
 	}
 
 	resp, err := client.Do(req)
@@ -152,8 +152,8 @@ func (t *transport) doOnce(ctx context.Context, u, redacted string, keyInURL boo
 		return &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
 	}
 	defer func() {
-		io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -186,10 +186,10 @@ func apiErrorFromResponse(resp *http.Response, redactedURL, apiKey string) error
 		Header:     redactHeader(resp.Header, apiKey),
 		Body:       redactBytes(body, apiKey),
 	}
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
+	switch resp.StatusCode {
+	case http.StatusNotFound:
 		return &NotFoundError{APIError: base}
-	case resp.StatusCode == http.StatusTooManyRequests:
+	case http.StatusTooManyRequests:
 		return &RateLimitError{APIError: base, RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"))}
 	default:
 		return base

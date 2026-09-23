@@ -1,4 +1,15 @@
-# defillama-go
+# DefiLlama Golang Client/SDK/Library
+
+![DefiLlama Go Golang SDK Client](https://i.postimg.cc/pr5KwwKP/defillama-golang-hero-github.jpg)
+
+[![CI](https://github.com/tigusigalpa/defillama-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tigusigalpa/defillama-go/actions/workflows/ci.yml)
+[![Tests](https://github.com/tigusigalpa/defillama-go/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/tigusigalpa/defillama-go/actions/workflows/test.yml)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![CodeQL](https://github.com/tigusigalpa/defillama-go/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/tigusigalpa/defillama-go/actions/workflows/codeql.yml)
+[![Codecov](https://codecov.io/gh/tigusigalpa/defillama-go/graph/badge.svg)](https://codecov.io/gh/tigusigalpa/defillama-go)
+[![GitHub Release](https://img.shields.io/github/v/release/tigusigalpa/defillama-go?style=flat-square)](https://github.com/tigusigalpa/defillama-go/releases)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue?style=flat-square&logo=go)](https://pkg.go.dev/github.com/tigusigalpa/defillama-go)
 
 `defillama-go` is a small, idiomatic Go client for the [DefiLlama Free and Pro APIs](https://defillama.com/). It gives an application one consistent, context-aware interface for protocol TVL, token prices, yields, stablecoins, fees, bridges, RWA, equities, and the rest of the documented API surface.
 
