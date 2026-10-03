@@ -1,6 +1,7 @@
 package defillama
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -45,7 +46,32 @@ func (t *transport) get(ctx context.Context, routeID string, pathParams map[stri
 		redacted += "?" + qs
 	}
 	keyInURL := r.Tier == "pro" || (t.cfg.preferProForFree && t.cfg.apiKey != "" && r.ProPath != "")
-	return t.doWithRetry(ctx, u, redacted, keyInURL, out)
+	_, err = t.doWithRetry(ctx, r, u, redacted, keyInURL, out)
+	return err
+}
+
+// getReceipt performs a registered request and returns the receipt for its
+// final response. A configured ReceiptObserver still receives every response,
+// including responses that trigger a retry.
+func (t *transport) getReceipt(ctx context.Context, routeID string, pathParams map[string]any, query url.Values) (*ResponseReceipt, error) {
+	r, err := lookupRoute(routeID)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateQuery(r, query); err != nil {
+		return nil, err
+	}
+	u, redacted, err := t.resolveFor(r, pathParams)
+	if err != nil {
+		return nil, err
+	}
+	if len(query) > 0 {
+		qs := query.Encode()
+		u += "?" + qs
+		redacted += "?" + qs
+	}
+	keyInURL := r.Tier == "pro" || (t.cfg.preferProForFree && t.cfg.apiKey != "" && r.ProPath != "")
+	return t.doWithRetry(ctx, r, u, redacted, keyInURL, nil)
 }
 
 // resolveFor delegates URL building to the shared config resolver.
@@ -53,17 +79,17 @@ func (t *transport) resolveFor(r route, pathParams map[string]any) (string, stri
 	return t.cfg.resolve(r, pathParams)
 }
 
-func (t *transport) doWithRetry(ctx context.Context, u, redacted string, keyInURL bool, out any) error {
+func (t *transport) doWithRetry(ctx context.Context, r route, u, redacted string, keyInURL bool, out any) (*ResponseReceipt, error) {
 	for attempt := 1; ; attempt++ {
-		err := t.doOnce(ctx, u, redacted, keyInURL, out)
+		receipt, err := t.doOnce(ctx, r, u, redacted, keyInURL, attempt, out)
 		if err == nil {
-			return nil
+			return receipt, nil
 		}
 		if ctx.Err() != nil {
-			return err
+			return receipt, err
 		}
 		if !t.retryable(err, attempt) {
-			return err
+			return receipt, err
 		}
 		delay := t.cfg.retry.delay(attempt)
 		if rl, ok := err.(*RateLimitError); ok && rl.RetryAfter > 0 && rl.RetryAfter > delay {
@@ -73,7 +99,7 @@ func (t *transport) doWithRetry(ctx context.Context, u, redacted string, keyInUR
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return &TransportError{URL: redacted, Err: ctx.Err()}
+			return receipt, &TransportError{URL: redacted, Err: ctx.Err()}
 		case <-timer.C:
 		}
 	}
@@ -114,14 +140,14 @@ func isTransientTransportError(err error) bool {
 		errors.Is(err, syscall.EPIPE)
 }
 
-func (t *transport) doOnce(ctx context.Context, u, redacted string, keyInURL bool, out any) error {
+func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, keyInURL bool, attempt int, out any) (*ResponseReceipt, error) {
 	apiKey := ""
 	if keyInURL {
 		apiKey = t.cfg.apiKey
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
+		return nil, &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", t.cfg.userAgentHeader())
@@ -149,28 +175,58 @@ func (t *transport) doOnce(ctx context.Context, u, redacted string, keyInURL boo
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
+		return nil, &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 		_ = resp.Body.Close()
 	}()
 
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		dec := json.NewDecoder(resp.Body)
-		if err := dec.Decode(out); err != nil {
-			return &DecodeError{URL: redacted, Err: err}
+	capture := out == nil || t.cfg.receiptObserver != nil
+	var receipt *ResponseReceipt
+	if capture {
+		body, readErr := io.ReadAll(resp.Body)
+		receiptResponse := *resp
+		receiptResponse.Header = redactHeader(resp.Header, apiKey)
+		captured := newResponseReceipt(r.Method+" "+r.Path, redacted, r.DocsURL, &receiptResponse, body, attempt)
+		receipt = &captured
+		if t.cfg.receiptObserver != nil {
+			t.cfg.receiptObserver(captured)
 		}
-		var extra any
-		if err := dec.Decode(&extra); err != io.EOF {
-			if err == nil {
-				err = errors.New("multiple JSON values in response")
+		if readErr != nil {
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				return receipt, &DecodeError{URL: redacted, Err: readErr}
 			}
-			return &DecodeError{URL: redacted, Err: err}
+			return receipt, &TransportError{URL: redacted, Err: readErr}
 		}
-		return nil
+		resp.Body = io.NopCloser(bytes.NewReader(body))
 	}
-	return apiErrorFromResponse(resp, redacted, apiKey)
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		if out == nil {
+			return receipt, nil
+		}
+		if err := decodeResponseJSON(resp.Body, out); err != nil {
+			return receipt, &DecodeError{URL: redacted, Err: err}
+		}
+		return receipt, nil
+	}
+	return receipt, apiErrorFromResponse(resp, redacted, apiKey)
+}
+
+func decodeResponseJSON(body io.Reader, out any) error {
+	dec := json.NewDecoder(body)
+	if err := dec.Decode(out); err != nil {
+		return err
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return errors.New("multiple JSON values in response")
+		}
+		return err
+	}
+	return nil
 }
 
 func sameOrigin(a, b *url.URL) bool {

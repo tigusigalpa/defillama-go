@@ -1,0 +1,3 @@
+# Lossless fixtures are evidence artifacts. Keep their exact bytes stable across
+# platforms so receipt hashes remain meaningful.
+testdata/lossless/*.json -text

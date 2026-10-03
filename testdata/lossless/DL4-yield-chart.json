@@ -1,0 +1,16 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "timestamp": "2024-01-02T03:04:05.678Z",
+      "tvlUsd": 1500000000.12345678901234567890,
+      "apy": 5.200000000000000001,
+      "apyBase": 3.100000000000000001,
+      "apyReward": null,
+      "providerCorrection": {
+        "status": "unknown"
+      }
+    }
+  ],
+  "unknownChartVersion": "provider-owned"
+}

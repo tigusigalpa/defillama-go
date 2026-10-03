@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add lossless receipts for the provider-native protocol and yield routes:
+  `GetProtocolsReceipt`, `GetProtocolReceipt`, `GetPoolsReceipt`, and
+  `GetPoolChartReceipt`. Receipts preserve immutable response bytes, redacted
+  route provenance, capture time, and a SHA-256 digest; `Decode` uses
+  `json.Decoder.UseNumber`.
+- Add open, selected-field lossless DTOs for protocol, protocol detail, yield
+  pool, and yield chart responses. They preserve exact number lexemes and the
+  distinction between absent, null, and zero without claiming a closed provider
+  schema.
+- Add `WithReceiptObserver` for applications that need one receipt per actual
+  HTTP response, including responses that cause a retry.
+
 ### Security
 
 - Redact the Pro API key from HTTP error response headers and bodies, as well

@@ -1,0 +1,15 @@
+{
+  "id": "provider-aave",
+  "name": "Aave",
+  "tvl": [
+    {
+      "date": 1728000000,
+      "totalLiquidityUSD": 1234567890.12345678901234567890,
+      "providerCorrection": "may change"
+    }
+  ],
+  "chainTvls": {
+    "Ethereum": 987654321.12345678901234567890
+  },
+  "unknownMethodology": "provider-defined"
+}

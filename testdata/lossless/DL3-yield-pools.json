@@ -1,0 +1,32 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "pool": "provider-pool-main",
+      "apy": 12.345678901234567890,
+      "apyBase": 10.000000000000000001,
+      "apyReward": null,
+      "rewardTokens": null,
+      "tvlUsd": 123456789.12345678901234567890,
+      "predictions": {
+        "predictedClass": "Stable/Up",
+        "predictedProbability": 0.98765432109876543210,
+        "binnedConfidence": 3
+      },
+      "providerClassification": "provider-defined"
+    },
+    {
+      "pool": "provider-pool-zero",
+      "apy": 0,
+      "apyBase": 0,
+      "apyReward": 0,
+      "rewardTokens": []
+    },
+    {
+      "pool": "provider-pool-absent",
+      "apy": 1.1,
+      "apyBase": 1.1
+    }
+  ],
+  "unknownDatasetVersion": "provider-owned"
+}

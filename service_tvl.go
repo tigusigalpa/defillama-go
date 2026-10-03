@@ -10,6 +10,13 @@ type TVLService struct {
 	t *transport
 }
 
+// GetProtocolsReceipt returns the lossless HTTP receipt for GET /protocols.
+// Decode it into LosslessProtocols to retain exact numeric lexemes and open
+// provider fields, or use ResponseReceipt.Decode with a caller-owned DTO.
+func (s *TVLService) GetProtocolsReceipt(ctx context.Context) (*ResponseReceipt, error) {
+	return s.t.getReceipt(ctx, "GET /protocols", map[string]any{}, url.Values{})
+}
+
 // GetProtocols List all protocols on defillama along with their tvl
 // See: https://api-docs.defillama.com/#tag/tvl/get/protocols
 func (s *TVLService) GetProtocols(ctx context.Context) ([]Protocol, error) {
@@ -33,6 +40,16 @@ func (s *TVLService) GetProtocol(ctx context.Context, protocol string) (*Protoco
 		return nil, err
 	}
 	return &ProtocolDetails{Raw: raw}, nil
+}
+
+// GetProtocolReceipt returns the lossless HTTP receipt for GET
+// /protocol/{protocol}. Decode it into LosslessProtocolDetails to retain exact
+// numeric lexemes and open chain/token maps.
+func (s *TVLService) GetProtocolReceipt(ctx context.Context, protocol string) (*ResponseReceipt, error) {
+	path := map[string]any{
+		"protocol": protocol,
+	}
+	return s.t.getReceipt(ctx, "GET /protocol/{protocol}", path, url.Values{})
 }
 
 // GetHistoricalChainTVL Get historical TVL (excludes liquid staking and double counted tvl) of DeFi on all chains

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "provider-aave",
+    "name": "Aave",
+    "tvl": 1234567890.12345678901234567890,
+    "chainTvls": {
+      "Ethereum": 987654321.12345678901234567890
+    },
+    "unknownProviderField": {
+      "correction": "unpublished"
+    }
+  }
+]

@@ -366,6 +366,80 @@ case err != nil:
 
 Retries are disabled by default. When configured, only GET requests with transient transport errors, HTTP 429, or HTTP 5xx are retried. Backoff is capped, includes optional jitter, honors `Retry-After`, and stops promptly when the context is cancelled or reaches its deadline. Decode errors and ordinary 4xx responses are never retried.
 
+## Preserve exact protocol and yield receipts
+
+The ordinary service methods are the convenient compatibility interface: their
+documented numeric fields use `float64`, and unknown fields in `map[string]any`
+follow Go's usual JSON decoding rules. That is not a lossless boundary for
+economic values.
+
+For provider-native protocol and yield data, use the receipt methods. A receipt
+preserves the exact response bytes, route provenance, redacted request URL,
+attempt number, and SDK capture time. `Decode` uses `json.Decoder.UseNumber`, so
+an untyped number remains a `json.Number` with its original lexeme. This is
+especially useful when a caller owns an immutable ingestion receipt or needs to
+distinguish an absent member, `null`, and numeric zero.
+
+```go
+receipt, err := client.TVL().GetProtocolReceipt(ctx, "aave")
+if err != nil {
+	return err
+}
+
+var details defillama.LosslessProtocolDetails
+if err := receipt.Decode(&details); err != nil {
+	return err
+}
+name, _, err := details.Name()
+if err != nil {
+	return err
+}
+history, present, err := details.TVLHistory()
+if err != nil {
+	return err
+}
+if !present || len(history) == 0 {
+	return fmt.Errorf("protocol history unavailable")
+}
+date, present := history[0].Field("date")
+if !present {
+	return fmt.Errorf("provider history date unavailable")
+}
+fmt.Printf("%s history date JSON: %s\n", name, date.RawJSON())
+fmt.Println("receipt SHA-256:", receipt.BodySHA256())
+```
+
+The selected receipt methods are `TVL().GetProtocolsReceipt`,
+`TVL().GetProtocolReceipt`, `Yields().GetPoolsReceipt`, and
+`Yields().GetPoolChartReceipt`. Decode their bodies into `LosslessProtocols`,
+`LosslessProtocolDetails`, `LosslessYieldPools`, or `LosslessYieldChart`.
+Those DTOs intentionally expose only selected convenience fields and retain all
+other provider fields through open `Fields()` objects; they do not claim a
+closed or complete provider schema.
+
+Pool IDs and protocol IDs are provider-native identifiers, not universal asset
+identities. Protocol history `date` values are provider Unix seconds, while a
+yield chart's `timestamp` is provider ISO-8601 text. Both are distinct from
+`receipt.CapturedAt`. Yield `apy`, `apyBase`, and `apyReward` remain separate
+provider percentages, and `predictions` stays an unclassified provider output.
+
+To retain every HTTP response, including responses that trigger a retry, pass
+an observer when constructing the client. The callback runs in the calling
+goroutine; avoid logging or persisting receipt bodies unless that is permitted
+by your application's data policy.
+
+```go
+client, err := defillama.New(
+	defillama.WithReceiptObserver(func(receipt defillama.ResponseReceipt) {
+		fmt.Printf("attempt %d: HTTP %d, %s\n",
+			receipt.Attempt, receipt.StatusCode, receipt.BodySHA256())
+	}),
+)
+if err != nil {
+	return err
+}
+```
+
 ## Services
 
 Every service accessor returns a lightweight client-owned value. Keep the top-level `Client` and call the service that matches the data you need.
@@ -406,6 +480,7 @@ For all 132 operations, parameter names, and links to the official reference, se
 | `WithRetryPolicy(policy)` | one attempt | Enables bounded retries for retryable GET failures. |
 | `WithUserAgent(value)` | `defillama-go/<version>` | Overrides the User-Agent header. |
 | `WithPreferProForFree(true)` | `false` | Routes Free calls to their official Pro equivalents when a key is present. |
+| `WithReceiptObserver(fn)` | none | Receives one immutable receipt for every HTTP response, including retry attempts. |
 
 `WithTimeout` does not alter a custom client supplied through `WithHTTPClient`; configure that client's timeouts yourself. `WithBaseURLsForTesting` exists for tests and advanced local mock-server setups, not ordinary production configuration.
 
@@ -423,7 +498,12 @@ if err != nil {
 
 ## Response precision and compatibility
 
-Values supplied by the API are decoded as `float64` transport values. Convert prices, TVL, and percentages to a decimal representation before calculations where rounding matters. DefiLlama may add fields to an API response; this package retains unknown fields in `Raw` on its stable typed models so an SDK update is not required just to inspect them.
+The ordinary typed API decodes values supplied by DefiLlama as `float64`
+transport values. Convert prices, TVL, and percentages to a decimal
+representation before calculations where rounding matters. Stable typed models
+retain unknown fields in `Raw`, but `Raw` is a compatibility map and does not
+preserve raw number lexemes. Use the receipt APIs above when exact JSON
+representation, field presence, or immutable source bytes matter.
 
 The package follows semantic versioning. Review [CHANGELOG.md](CHANGELOG.md) when upgrading; endpoint coverage changes are visible in [docs/api-index.md](docs/api-index.md).
 

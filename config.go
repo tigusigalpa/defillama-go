@@ -16,6 +16,7 @@ type config struct {
 	userAgent        string
 	preferProForFree bool
 	baseURLs         map[string]string
+	receiptObserver  ReceiptObserver
 }
 
 func defaultConfig() config {
@@ -128,6 +129,24 @@ func WithBaseURLsForTesting(m map[string]string) Option {
 		for base, override := range m {
 			c.baseURLs[base] = override
 		}
+		return nil
+	}
+}
+
+// WithReceiptObserver receives an immutable ResponseReceipt for every HTTP
+// response the SDK receives, including retryable responses before a later
+// attempt succeeds. Use it when your application needs to retain provider
+// receipts outside the SDK's ordinary typed response boundary.
+//
+// The observer runs synchronously in the request goroutine. It receives a
+// redacted URL and defensive copies from Body and Header; avoid logging or
+// persisting receipt bodies unless your application's data policy allows it.
+func WithReceiptObserver(observer ReceiptObserver) Option {
+	return func(c *config) error {
+		if observer == nil {
+			return &ConfigError{Msg: "receipt observer must not be nil"}
+		}
+		c.receiptObserver = observer
 		return nil
 	}
 }

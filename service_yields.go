@@ -10,6 +10,13 @@ type YieldsService struct {
 	t *transport
 }
 
+// GetPoolsReceipt returns the lossless HTTP receipt for GET /pools. Decode it
+// into LosslessYieldPools to preserve provider-native pool IDs, number lexemes,
+// and absent/null/zero distinctions for open response fields.
+func (s *YieldsService) GetPoolsReceipt(ctx context.Context) (*ResponseReceipt, error) {
+	return s.t.getReceipt(ctx, "GET /pools", map[string]any{}, url.Values{})
+}
+
 // GetPools Retrieve the latest data for all pools, including enriched information such as predictions
 // See: https://api-docs.defillama.com/#tag/yields/get/pools
 func (s *YieldsService) GetPools(ctx context.Context) ([]YieldPool, error) {
@@ -35,6 +42,16 @@ func (s *YieldsService) GetPoolChart(ctx context.Context, pool string) (map[stri
 		return nil, err
 	}
 	return raw, nil
+}
+
+// GetPoolChartReceipt returns the lossless HTTP receipt for GET /chart/{pool}.
+// Decode it into LosslessYieldChart to retain ISO-8601 provider timestamps and
+// exact APY/TVL number lexemes.
+func (s *YieldsService) GetPoolChartReceipt(ctx context.Context, pool string) (*ResponseReceipt, error) {
+	path := map[string]any{
+		"pool": pool,
+	}
+	return s.t.getReceipt(ctx, "GET /chart/{pool}", path, url.Values{})
 }
 
 // GetLegacyPools Retrieve the latest data for all pools in the legacy v1 response format
