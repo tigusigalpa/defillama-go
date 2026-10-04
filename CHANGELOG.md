@@ -22,8 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve API, decode, read, drain, and close failures together using Go error
   wrapping, so each cause remains available through `errors.Is` and
   `errors.As`. Response-limit failures are not retried.
-- Set the exported package `Version` and default User-Agent to the published
-  `v1.1.0` value.
+- Set the exported package `Version` and default User-Agent to the `v1.2.1`
+  release value.
 
 ## [1.1.0] - 2026-10-04
 

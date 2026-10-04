@@ -323,14 +323,14 @@ func TestResponseLimitAndVersionMetadata(t *testing.T) {
 	if DefaultMaxResponseBodyBytes != 32<<20 {
 		t.Errorf("default max response bytes = %d", DefaultMaxResponseBodyBytes)
 	}
-	if Version != "1.1.0" {
-		t.Errorf("Version = %q, want 1.1.0", Version)
+	if Version != "1.2.1" {
+		t.Errorf("Version = %q, want 1.2.1", Version)
 	}
 	client, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := client.cfg.userAgentHeader(); got != "defillama-go/1.1.0" {
+	if got := client.cfg.userAgentHeader(); got != "defillama-go/1.2.1" {
 		t.Errorf("default User-Agent = %q", got)
 	}
 	for _, max := range []int64{0, -1, math.MaxInt64} {
