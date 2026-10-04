@@ -373,12 +373,13 @@ documented numeric fields use `float64`, and unknown fields in `map[string]any`
 follow Go's usual JSON decoding rules. That is not a lossless boundary for
 economic values.
 
-For provider-native protocol and yield data, use the receipt methods. A receipt
-preserves the exact response bytes, route provenance, redacted request URL,
-attempt number, and SDK capture time. `Decode` uses `json.Decoder.UseNumber`, so
-an untyped number remains a `json.Number` with its original lexeme. This is
-especially useful when a caller owns an immutable ingestion receipt or needs to
-distinguish an absent member, `null`, and numeric zero.
+For provider-native protocol and yield data, use the receipt methods. A
+complete receipt preserves the exact response bytes, route provenance, redacted
+request URL, attempt number, and SDK capture time. `Decode` uses
+`json.Decoder.UseNumber`, so an untyped number remains a `json.Number` with its
+original lexeme. This is especially useful when a caller owns an immutable
+ingestion receipt or needs to distinguish an absent member, `null`, and numeric
+zero.
 
 ```go
 receipt, err := client.TVL().GetProtocolReceipt(ctx, "aave")
@@ -409,6 +410,40 @@ fmt.Printf("%s history date JSON: %s\n", name, date.RawJSON())
 fmt.Println("receipt SHA-256:", receipt.BodySHA256())
 ```
 
+`CapturedAt` is recorded as soon as the HTTP response is received;
+`CompletedAt` is recorded only after the original response body has been read,
+boundedly drained, and closed. Always check `Complete` before treating `Body()`
+as a whole response. If a read, limit, drain, or close step fails, the receipt
+still exposes the immutable prefix and its SHA-256 digest for diagnostics, but
+`Complete` is false and the returned error keeps every underlying cause
+discoverable through `errors.Is` and `errors.As`.
+
+Every response body, including ordinary typed calls, is limited to 32 MiB by
+default. Choose a smaller or larger positive limit when constructing the client;
+an over-limit response is never retried and matches
+`defillama.ErrResponseBodyTooLarge`.
+
+```go
+client, err := defillama.New(
+	defillama.WithMaxResponseBodyBytes(8<<20), // 8 MiB
+)
+if err != nil {
+	return err
+}
+
+receipt, err := client.TVL().GetProtocolsReceipt(ctx)
+if err != nil {
+	if errors.Is(err, defillama.ErrResponseBodyTooLarge) {
+		// receipt, when non-nil, holds the safely bounded prefix.
+		return fmt.Errorf("protocol response exceeds the ingestion budget: %w", err)
+	}
+	return err
+}
+if !receipt.Complete {
+	return fmt.Errorf("incomplete protocol receipt")
+}
+```
+
 The selected receipt methods are `TVL().GetProtocolsReceipt`,
 `TVL().GetProtocolReceipt`, `Yields().GetPoolsReceipt`, and
 `Yields().GetPoolChartReceipt`. Decode their bodies into `LosslessProtocols`,
@@ -425,14 +460,15 @@ provider percentages, and `predictions` stays an unclassified provider output.
 
 To retain every HTTP response, including responses that trigger a retry, pass
 an observer when constructing the client. The callback runs in the calling
-goroutine; avoid logging or persisting receipt bodies unless that is permitted
-by your application's data policy.
+goroutine only after that response's original body is finalized; a
+transport-only failure produces no receipt. Avoid logging or persisting receipt
+bodies unless that is permitted by your application's data policy.
 
 ```go
 client, err := defillama.New(
 	defillama.WithReceiptObserver(func(receipt defillama.ResponseReceipt) {
-		fmt.Printf("attempt %d: HTTP %d, %s\n",
-			receipt.Attempt, receipt.StatusCode, receipt.BodySHA256())
+		fmt.Printf("attempt %d: HTTP %d, complete=%t, %s\n",
+			receipt.Attempt, receipt.StatusCode, receipt.Complete, receipt.BodySHA256())
 	}),
 )
 if err != nil {
@@ -481,6 +517,7 @@ For all 132 operations, parameter names, and links to the official reference, se
 | `WithUserAgent(value)` | `defillama-go/<version>` | Overrides the User-Agent header. |
 | `WithPreferProForFree(true)` | `false` | Routes Free calls to their official Pro equivalents when a key is present. |
 | `WithReceiptObserver(fn)` | none | Receives one immutable receipt for every HTTP response, including retry attempts. |
+| `WithMaxResponseBodyBytes(n)` | 32 MiB | Sets a positive inclusive response-body limit for typed decoding and receipts; overflow returns a non-retryable `ResponseBodyTooLargeError`. |
 
 `WithTimeout` does not alter a custom client supplied through `WithHTTPClient`; configure that client's timeouts yourself. `WithBaseURLsForTesting` exists for tests and advanced local mock-server setups, not ordinary production configuration.
 

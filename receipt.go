@@ -14,7 +14,9 @@ import (
 
 // ResponseReceipt is an immutable record of one HTTP response received by the
 // SDK. It preserves the response body byte-for-byte and records the selected
-// route, its redacted request URL, and capture time.
+// route, its redacted request URL, and transport lifecycle times. It may hold
+// an incomplete prefix when the body cannot be fully read or exceeds the
+// configured response limit.
 //
 // Body returns a copy. Decode uses json.Decoder.UseNumber, so numbers decoded
 // into interface values remain json.Number rather than float64. Receipts are
@@ -34,21 +36,30 @@ type ResponseReceipt struct {
 	// CapturedAt is when the SDK received the response, in UTC. It is distinct
 	// from any provider timestamp in the response body.
 	CapturedAt time.Time
+	// CompletedAt is when bounded reading, draining, and closing the original
+	// response body completed. It is distinct from provider event time.
+	CompletedAt time.Time
+	// Complete reports that the original body reached EOF within the configured
+	// limit and closed successfully. It does not indicate an HTTP success, valid
+	// JSON, or provider-data quality.
+	Complete bool
 
 	body   []byte
 	header http.Header
 }
 
-func newResponseReceipt(routeID, sourceURL, docsURL string, resp *http.Response, body []byte, attempt int) ResponseReceipt {
+func newResponseReceipt(routeID, sourceURL, docsURL string, statusCode int, header http.Header, body []byte, attempt int, capturedAt, completedAt time.Time, complete bool) ResponseReceipt {
 	return ResponseReceipt{
-		Route:      routeID,
-		SourceURL:  sourceURL,
-		DocsURL:    docsURL,
-		StatusCode: resp.StatusCode,
-		Attempt:    attempt,
-		CapturedAt: time.Now().UTC(),
-		body:       append([]byte(nil), body...),
-		header:     cloneHeader(resp.Header),
+		Route:       routeID,
+		SourceURL:   sourceURL,
+		DocsURL:     docsURL,
+		StatusCode:  statusCode,
+		Attempt:     attempt,
+		CapturedAt:  capturedAt,
+		CompletedAt: completedAt,
+		Complete:    complete,
+		body:        append([]byte(nil), body...),
+		header:      cloneHeader(header),
 	}
 }
 

@@ -22,6 +22,10 @@ type transport struct {
 	client *http.Client
 }
 
+// responseDrainLimit bounds best-effort cleanup after the configured response
+// limit or a read failure. It is separate from retained response data.
+const responseDrainLimit int64 = 1 << 20
+
 func newTransport(cfg config) *transport {
 	return &transport{cfg: cfg, client: cfg.http()}
 }
@@ -92,7 +96,8 @@ func (t *transport) doWithRetry(ctx context.Context, r route, u, redacted string
 			return receipt, err
 		}
 		delay := t.cfg.retry.delay(attempt)
-		if rl, ok := err.(*RateLimitError); ok && rl.RetryAfter > 0 && rl.RetryAfter > delay {
+		var rl *RateLimitError
+		if errors.As(err, &rl) && rl.RetryAfter > 0 && rl.RetryAfter > delay {
 			delay = rl.RetryAfter
 		}
 		timer := time.NewTimer(delay)
@@ -110,16 +115,26 @@ func (t *transport) retryable(err error, attempt int) bool {
 	if attempt >= t.cfg.retry.MaxAttempts {
 		return false
 	}
-	switch e := err.(type) {
-	case *TransportError:
-		return isTransientTransportError(e.Err)
-	case *RateLimitError:
-		return true
-	case *APIError:
-		return e.StatusCode >= 500 && e.StatusCode <= 599
-	default:
+	if errors.Is(err, ErrResponseBodyTooLarge) || errors.Is(err, context.Canceled) {
 		return false
 	}
+	var transportErr *TransportError
+	if errors.As(err, &transportErr) && isTransientTransportError(transportErr.Err) {
+		return true
+	}
+	var decodeErr *DecodeError
+	if errors.As(err, &decodeErr) && isTransientTransportError(decodeErr.Err) {
+		return true
+	}
+	var rateLimitErr *RateLimitError
+	if errors.As(err, &rateLimitErr) {
+		return true
+	}
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.StatusCode >= 500 && apiErr.StatusCode <= 599
+	}
+	return false
 }
 
 func isTransientTransportError(err error) bool {
@@ -177,41 +192,108 @@ func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, key
 	if err != nil {
 		return nil, &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
 	}
-	defer func() {
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
-		_ = resp.Body.Close()
-	}()
-
+	capturedAt := time.Now().UTC()
+	originalBody := resp.Body
+	body := finalizeResponseBody(originalBody, t.cfg.maxResponseBytes)
 	capture := out == nil || t.cfg.receiptObserver != nil
+
+	var primary error
+	readIsPrimary := false
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		if body.readErr != nil {
+			primary = &DecodeError{URL: redacted, Err: body.readErr}
+			readIsPrimary = true
+		} else if out != nil {
+			if err := decodeResponseJSON(bytes.NewReader(body.data), out); err != nil {
+				primary = &DecodeError{URL: redacted, Err: err}
+			}
+		}
+	} else {
+		primary = apiErrorFromResponse(resp.StatusCode, resp.Header, body.data, redacted, apiKey)
+	}
+	finalErr := joinResponseErrors(primary, redacted, body, readIsPrimary)
+
 	var receipt *ResponseReceipt
 	if capture {
-		body, readErr := io.ReadAll(resp.Body)
-		receiptResponse := *resp
-		receiptResponse.Header = redactHeader(resp.Header, apiKey)
-		captured := newResponseReceipt(r.Method+" "+r.Path, redacted, r.DocsURL, &receiptResponse, body, attempt)
+		captured := newResponseReceipt(
+			r.Method+" "+r.Path,
+			redacted,
+			r.DocsURL,
+			resp.StatusCode,
+			redactHeader(resp.Header, apiKey),
+			body.data,
+			attempt,
+			capturedAt,
+			body.completedAt,
+			body.complete,
+		)
 		receipt = &captured
 		if t.cfg.receiptObserver != nil {
 			t.cfg.receiptObserver(captured)
 		}
-		if readErr != nil {
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				return receipt, &DecodeError{URL: redacted, Err: readErr}
-			}
-			return receipt, &TransportError{URL: redacted, Err: readErr}
-		}
-		resp.Body = io.NopCloser(bytes.NewReader(body))
 	}
+	return receipt, finalErr
+}
 
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		if out == nil {
-			return receipt, nil
-		}
-		if err := decodeResponseJSON(resp.Body, out); err != nil {
-			return receipt, &DecodeError{URL: redacted, Err: err}
-		}
-		return receipt, nil
+type finalizedResponseBody struct {
+	data        []byte
+	readErr     error
+	drainErr    error
+	closeErr    error
+	complete    bool
+	completedAt time.Time
+}
+
+// finalizeResponseBody reads at most max bytes for retention, then drains and
+// closes the original response body exactly once. It never receives a replay
+// buffer, so cleanup cannot be redirected to a replacement body.
+func finalizeResponseBody(original io.ReadCloser, limit int64) finalizedResponseBody {
+	data, reachedEOF, readErr := readResponseBody(original, limit)
+	_, drainErr := io.Copy(io.Discard, io.LimitReader(original, responseDrainLimit))
+	closeErr := original.Close()
+	return finalizedResponseBody{
+		data:        data,
+		readErr:     readErr,
+		drainErr:    drainErr,
+		closeErr:    closeErr,
+		complete:    reachedEOF && drainErr == nil && closeErr == nil,
+		completedAt: time.Now().UTC(),
 	}
-	return receipt, apiErrorFromResponse(resp, redacted, apiKey)
+}
+
+func readResponseBody(body io.Reader, limit int64) ([]byte, bool, error) {
+	data, err := io.ReadAll(io.LimitReader(body, limit+1))
+	if int64(len(data)) > limit {
+		return data[:limit], false, &ResponseBodyTooLargeError{Limit: limit}
+	}
+	if err != nil {
+		return data, false, err
+	}
+	return data, true, nil
+}
+
+func joinResponseErrors(primary error, redactedURL string, body finalizedResponseBody, readIsPrimary bool) error {
+	errs := make([]error, 0, 4)
+	if primary != nil {
+		errs = append(errs, primary)
+	}
+	if body.readErr != nil && !readIsPrimary {
+		errs = append(errs, &TransportError{URL: redactedURL, Err: body.readErr})
+	}
+	if body.drainErr != nil {
+		errs = append(errs, &TransportError{URL: redactedURL, Err: body.drainErr})
+	}
+	if body.closeErr != nil {
+		errs = append(errs, &TransportError{URL: redactedURL, Err: body.closeErr})
+	}
+	switch len(errs) {
+	case 0:
+		return nil
+	case 1:
+		return errs[0]
+	default:
+		return errors.Join(errs...)
+	}
 }
 
 func decodeResponseJSON(body io.Reader, out any) error {
@@ -233,20 +315,24 @@ func sameOrigin(a, b *url.URL) bool {
 	return strings.EqualFold(a.Scheme, b.Scheme) && strings.EqualFold(a.Host, b.Host)
 }
 
-// apiErrorFromResponse maps a non-2xx response to the typed error tree.
-func apiErrorFromResponse(resp *http.Response, redactedURL, apiKey string) error {
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, apiErrorBodyLimit))
+// apiErrorFromResponse maps a non-2xx response and its bounded body prefix to
+// the typed error tree. Lifecycle errors are joined by the caller.
+func apiErrorFromResponse(statusCode int, header http.Header, responseBody []byte, redactedURL, apiKey string) error {
+	body := responseBody
+	if len(body) > apiErrorBodyLimit {
+		body = body[:apiErrorBodyLimit]
+	}
 	base := &APIError{
-		StatusCode: resp.StatusCode,
+		StatusCode: statusCode,
 		URL:        redactedURL,
-		Header:     redactHeader(resp.Header, apiKey),
+		Header:     redactHeader(header, apiKey),
 		Body:       redactBytes(body, apiKey),
 	}
-	switch resp.StatusCode {
+	switch statusCode {
 	case http.StatusNotFound:
 		return &NotFoundError{APIError: base}
 	case http.StatusTooManyRequests:
-		return &RateLimitError{APIError: base, RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"))}
+		return &RateLimitError{APIError: base, RetryAfter: parseRetryAfter(header.Get("Retry-After"))}
 	default:
 		return base
 	}

@@ -75,8 +75,8 @@ func TestHeadersSent(t *testing.T) {
 	if got := r.Header.Get("Accept"); got != "application/json" {
 		t.Errorf("Accept = %q", got)
 	}
-	if got := r.Header.Get("User-Agent"); !strings.HasPrefix(got, "defillama-go/") {
-		t.Errorf("User-Agent = %q", got)
+	if got := r.Header.Get("User-Agent"); got != "defillama-go/"+Version {
+		t.Errorf("User-Agent = %q, want defillama-go/%s", got, Version)
 	}
 }
 

@@ -2,10 +2,16 @@ package defillama
 
 import (
 	"crypto/tls"
+	"math"
 	"net"
 	"net/http"
 	"time"
 )
+
+// DefaultMaxResponseBodyBytes is the 32 MiB ceiling applied to every HTTP
+// response body. It is deliberately large enough for protocol and pool lists;
+// use WithMaxResponseBodyBytes when an application has a different budget.
+const DefaultMaxResponseBodyBytes int64 = 32 << 20
 
 // config holds the immutable client configuration assembled by Option values.
 type config struct {
@@ -17,13 +23,15 @@ type config struct {
 	preferProForFree bool
 	baseURLs         map[string]string
 	receiptObserver  ReceiptObserver
+	maxResponseBytes int64
 }
 
 func defaultConfig() config {
 	return config{
-		timeout:   30 * time.Second,
-		retry:     RetryPolicy{MaxAttempts: 1, BaseDelay: 500 * time.Millisecond, MaxDelay: 8 * time.Second, Jitter: true},
-		userAgent: "defillama-go/" + Version,
+		timeout:          30 * time.Second,
+		retry:            RetryPolicy{MaxAttempts: 1, BaseDelay: 500 * time.Millisecond, MaxDelay: 8 * time.Second, Jitter: true},
+		userAgent:        "defillama-go/" + Version,
+		maxResponseBytes: DefaultMaxResponseBodyBytes,
 	}
 }
 
@@ -36,6 +44,9 @@ func (c *config) validate() error {
 	}
 	if c.retry.BaseDelay < 0 || c.retry.MaxDelay < 0 {
 		return &ConfigError{Msg: "retry delays must be >= 0"}
+	}
+	if c.maxResponseBytes <= 0 || c.maxResponseBytes == math.MaxInt64 {
+		return &ConfigError{Msg: "max response body bytes must be > 0 and below MaxInt64"}
 	}
 	return nil
 }
@@ -147,6 +158,20 @@ func WithReceiptObserver(observer ReceiptObserver) Option {
 			return &ConfigError{Msg: "receipt observer must not be nil"}
 		}
 		c.receiptObserver = observer
+		return nil
+	}
+}
+
+// WithMaxResponseBodyBytes sets the maximum number of response bytes retained
+// and decoded for each request. The default is DefaultMaxResponseBodyBytes
+// (32 MiB). An over-limit response returns a ResponseBodyTooLargeError and is
+// never retried.
+func WithMaxResponseBodyBytes(limit int64) Option {
+	return func(c *config) error {
+		if limit <= 0 || limit == math.MaxInt64 {
+			return &ConfigError{Msg: "max response body bytes must be > 0 and below MaxInt64"}
+		}
+		c.maxResponseBytes = limit
 		return nil
 	}
 }

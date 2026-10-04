@@ -2,6 +2,7 @@ package defillama
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -60,6 +61,24 @@ func (e *DecodeError) Unwrap() error { return e.Err }
 
 // apiErrorBodyLimit bounds the response body stored on APIError.
 const apiErrorBodyLimit = 4096
+
+// ErrResponseBodyTooLarge is matched by ResponseBodyTooLargeError when a
+// response exceeds the configured WithMaxResponseBodyBytes limit.
+var ErrResponseBodyTooLarge = errors.New("defillama: response body exceeds configured limit")
+
+// ResponseBodyTooLargeError reports a response that exceeded the configured
+// body limit. It is never retryable because a retry would not reduce the body.
+type ResponseBodyTooLargeError struct {
+	Limit int64
+}
+
+// Error implements error.
+func (e *ResponseBodyTooLargeError) Error() string {
+	return fmt.Sprintf("defillama: response body exceeds configured limit of %d bytes", e.Limit)
+}
+
+// Unwrap allows errors.Is(err, ErrResponseBodyTooLarge).
+func (e *ResponseBodyTooLargeError) Unwrap() error { return ErrResponseBodyTooLarge }
 
 // APIError is a non-2xx HTTP response. URL is always the redacted form.
 type APIError struct {

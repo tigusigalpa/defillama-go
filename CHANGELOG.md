@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `WithMaxResponseBodyBytes`, with a 32 MiB default limit, and the
+  inspectable `ResponseBodyTooLargeError` / `ErrResponseBodyTooLarge` pair.
+  The limit applies consistently to typed decoding and receipt capture.
+
+### Changed
+
+- Finalize every original HTTP response body before returning, observing, or
+  retrying: it is read within the configured limit, boundedly drained, and
+  closed exactly once. Receipts now expose `CompletedAt` and `Complete`; an
+  incomplete receipt retains only the safely captured body prefix and digest.
+- Preserve API, decode, read, drain, and close failures together using Go error
+  wrapping, so each cause remains available through `errors.Is` and
+  `errors.As`. Response-limit failures are not retried.
+- Set the exported package `Version` and default User-Agent to the published
+  `v1.1.0` value.
+
+## [1.1.0] - 2026-10-04
+
+### Added
+
 - Add lossless receipts for the provider-native protocol and yield routes:
   `GetProtocolsReceipt`, `GetProtocolReceipt`, `GetPoolsReceipt`, and
   `GetPoolChartReceipt`. Receipts preserve immutable response bytes, redacted
@@ -28,8 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent Pro requests from following redirects to another origin, which could
   expose the key embedded in the request URL.
 - Redact the key when request construction fails before an HTTP call is sent.
-
-### Changed
 
 - Reject an empty token list before it can produce an invalid price-route URL.
 - Copy test base-URL overrides at client construction, so later caller-side
