@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add per-operation `WithAttemptObserver` diagnostics. It reports bounded
+  per-attempt evidence to a caller-owned callback, including response-less
+  transport failures, without changing receipt observer behavior or retaining
+  an SDK-side history.
+
+## [1.2.1] - 2026-10-04
+
+### Added
+
 - Add `WithMaxResponseBodyBytes`, with a 32 MiB default limit, and the
   inspectable `ResponseBodyTooLargeError` / `ErrResponseBodyTooLarge` pair.
   The limit applies consistently to typed decoding and receipt capture.
@@ -48,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent Pro requests from following redirects to another origin, which could
   expose the key embedded in the request URL.
 - Redact the key when request construction fails before an HTTP call is sent.
+
+### Changed
 
 - Reject an empty token list before it can produce an invalid price-route URL.
 - Copy test base-URL overrides at client construction, so later caller-side

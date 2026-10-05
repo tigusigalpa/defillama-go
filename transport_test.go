@@ -80,6 +80,17 @@ func TestHeadersSent(t *testing.T) {
 	}
 }
 
+func TestConfiguredUserAgentIsPreserved(t *testing.T) {
+	const userAgent = "defillama-go-integration/7.3"
+	_, client, log := testServer(t, okJSON, WithUserAgent(userAgent))
+	if _, err := client.TVL().GetProtocols(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := log.all()[0].Header.Get("User-Agent"); got != userAgent {
+		t.Errorf("User-Agent = %q, want %q", got, userAgent)
+	}
+}
+
 func TestFreeRouteUsesPath(t *testing.T) {
 	_, c, log := testServer(t, okJSON)
 	if _, err := c.TVL().GetProtocol(context.Background(), "aave"); err != nil {

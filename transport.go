@@ -12,14 +12,16 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
 
 // transport executes registered GET routes. All services share one instance.
 type transport struct {
-	cfg    config
-	client *http.Client
+	cfg             config
+	client          *http.Client
+	nextOperationID atomic.Uint64
 }
 
 // responseDrainLimit bounds best-effort cleanup after the configured response
@@ -84,8 +86,16 @@ func (t *transport) resolveFor(r route, pathParams map[string]any) (string, stri
 }
 
 func (t *transport) doWithRetry(ctx context.Context, r route, u, redacted string, keyInURL bool, out any) (*ResponseReceipt, error) {
+	observer := attemptObserverFromContext(ctx)
+	var operationID uint64
+	if observer != nil {
+		operationID = t.nextOperationID.Add(1)
+	}
 	for attempt := 1; ; attempt++ {
-		receipt, err := t.doOnce(ctx, r, u, redacted, keyInURL, attempt, out)
+		receipt, err, diagnostic := t.doOnce(ctx, r, u, redacted, keyInURL, operationID, attempt, out)
+		if observer != nil {
+			observer(diagnostic)
+		}
 		if err == nil {
 			return receipt, nil
 		}
@@ -155,14 +165,16 @@ func isTransientTransportError(err error) bool {
 		errors.Is(err, syscall.EPIPE)
 }
 
-func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, keyInURL bool, attempt int, out any) (*ResponseReceipt, error) {
+func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, keyInURL bool, operationID uint64, attempt int, out any) (*ResponseReceipt, error, AttemptDiagnostic) {
+	startedAt := time.Now().UTC()
 	apiKey := ""
 	if keyInURL {
 		apiKey = t.cfg.apiKey
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return nil, &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
+		finalErr := &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
+		return nil, finalErr, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, time.Now().UTC(), false, 0, false, finalErr)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", t.cfg.userAgentHeader())
@@ -190,7 +202,8 @@ func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, key
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
+		finalErr := &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
+		return nil, finalErr, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, time.Now().UTC(), false, 0, false, finalErr)
 	}
 	capturedAt := time.Now().UTC()
 	originalBody := resp.Body
@@ -232,7 +245,7 @@ func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, key
 			t.cfg.receiptObserver(captured)
 		}
 	}
-	return receipt, finalErr
+	return receipt, finalErr, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, body.completedAt, true, resp.StatusCode, body.complete, finalErr)
 }
 
 type finalizedResponseBody struct {

@@ -476,6 +476,43 @@ if err != nil {
 }
 ```
 
+### Inspect every attempt without retaining receipts
+
+When retry diagnostics matter, attach an observer to the context for one
+operation. It receives an event for each actual attempt, including a
+response-less transport failure. `OperationID` groups events if an application
+uses a shared callback; `Attempt` is the one-based number within that operation.
+This is separate from `WithReceiptObserver`: the latter remains response-only,
+so no failed dial or cancelled request is turned into a synthetic receipt.
+
+```go
+ctx = defillama.WithAttemptObserver(ctx, func(attempt defillama.AttemptDiagnostic) {
+	if !attempt.ResponseReceived {
+		// A dial, timeout, or cancellation failed before an HTTP response.
+		if errors.Is(attempt.Err, context.DeadlineExceeded) {
+			fmt.Printf("attempt %d timed out\n", attempt.Attempt)
+		}
+		return
+	}
+
+	fmt.Printf("attempt %d: HTTP %d, complete=%t, outcome=%s\n",
+		attempt.Attempt, attempt.StatusCode, attempt.ResponseComplete, attempt.Outcome)
+})
+
+protocols, err := client.TVL().GetProtocols(ctx)
+if err != nil {
+	return err // The terminal error remains the ordinary service error.
+}
+_ = protocols
+```
+
+The callback runs synchronously only after a received response body has been
+finalized. It receives no headers or response bytes; `TargetURL` removes
+user-info and redacts all query values. The SDK keeps no attempt buffer,
+so create a fresh observer context per operation and retain only the diagnostic
+data your application needs. `Err` preserves its original cause for
+`errors.Is`/`errors.As`, but is never logged or serialized by the SDK.
+
 ## Services
 
 Every service accessor returns a lightweight client-owned value. Keep the top-level `Client` and call the service that matches the data you need.
@@ -557,7 +594,7 @@ staticcheck ./...      # if installed
 golangci-lint run      # if installed
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions and [docs/implementation-report.md](docs/implementation-report.md) for the original coverage and verification record. To report a security issue, follow [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions, [docs/release-checklist.md](docs/release-checklist.md) for release metadata checks, and [docs/implementation-report.md](docs/implementation-report.md) for the original coverage and verification record. To report a security issue, follow [SECURITY.md](SECURITY.md).
 
 ## License
 
