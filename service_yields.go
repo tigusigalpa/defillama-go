@@ -250,13 +250,13 @@ func (s *YieldsService) GetLoopStrategies(ctx context.Context) (map[string]any, 
 	return raw, nil
 }
 
-// GetPerpFundingRates Funding rates and Open Interest of perps across exchanges, including both Decentralized and Centralized
-// See: https://api-docs.defillama.com/#tag/yields/get/yields/perps
+// GetPerpFundingRates returns funding rates and open interest of perpetual futures (Binance and OKX).
+// See: https://api-docs.defillama.com/#tag/yields/get/api/perpFundingRates
 func (s *YieldsService) GetPerpFundingRates(ctx context.Context) (map[string]any, error) {
 	query := url.Values{}
 	path := map[string]any{}
 	var raw map[string]any
-	if err := s.t.get(ctx, "GET /yields/perps", path, query, &raw); err != nil {
+	if err := s.t.get(ctx, "GET /api/perpFundingRates", path, query, &raw); err != nil {
 		return nil, err
 	}
 	return raw, nil

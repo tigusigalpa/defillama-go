@@ -171,13 +171,13 @@ var routeRegistry = map[string]route{
 	},
 	"GET /pools": {
 		Method: "GET", Path: "/pools", Tier: "free", Server: "https://yields.llama.fi",
-		ProPath: "/yields/pools",
+		ProPath: "/yields/v1/pools",
 		Service: "Yields", GoMethod: "GetPools", DocsURL: "https://api-docs.defillama.com/#tag/yields/get/pools",
 		Summary: "Retrieve the latest data for all pools, including enriched information such as predictions",
 	},
 	"GET /chart/{pool}": {
 		Method: "GET", Path: "/chart/{pool}", Tier: "free", Server: "https://yields.llama.fi",
-		ProPath: "/yields/chart/{pool}",
+		ProPath: "/yields/v1/chart/{pool}",
 		Service: "Yields", GoMethod: "GetPoolChart", DocsURL: "https://api-docs.defillama.com/#tag/yields/get/chart/%7Bpool%7D",
 		Summary: "Get historical APY and TVL of a pool",
 		Params: []routeParam{
@@ -536,7 +536,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetMetrics", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/metrics/%7Bmetric%7D",
 		Summary: "Get dimension data overview",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume", "active-users"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume", "active-users"}},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
 	},
@@ -545,7 +545,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetChart", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D",
 		Summary: "Get historical timeseries chart data",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume", "active-users"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume", "active-users"}},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
 	},
@@ -554,7 +554,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetChartChainBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/chain-breakdown",
 		Summary: "Get historical timeseries chart data breakdown by chain",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume", "active-users"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume", "active-users"}},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
 	},
@@ -563,7 +563,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetChartProtocolBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/protocol-breakdown",
 		Summary: "Get historical timeseries chart data breakdown by protocol",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
 	},
@@ -572,7 +572,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetChainMetrics", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/metrics/%7Bmetric%7D/chain/%7Bchain%7D",
 		Summary: "Get chain dimension data overview",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "chain", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -582,7 +582,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetChainChart", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/chain/%7Bchain%7D",
 		Summary: "Get chain historical timeseries chart data",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "chain", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -592,7 +592,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetChainChartProtocolBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/chain/%7Bchain%7D/protocol-breakdown",
 		Summary: "Get chain timeseries chart data breakdown by protocol",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "chain", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -602,7 +602,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetProtocolMetrics", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/metrics/%7Bmetric%7D/protocol/%7Bprotocol%7D",
 		Summary: "Get protocol dimension data overview",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "protocol", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -612,7 +612,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetProtocolChart", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/protocol/%7Bprotocol%7D",
 		Summary: "Get protocol historical timeseries chart data",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "protocol", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -622,7 +622,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetProtocolChartChainBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/protocol/%7Bprotocol%7D/chain-breakdown",
 		Summary: "Get protocol timeseries chart data breakdown by chain",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "protocol", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -632,7 +632,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetProtocolChartVersionBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/protocol/%7Bprotocol%7D/version-breakdown",
 		Summary: "Get protocol timeseries chart data breakdown by version",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "protocol", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -642,7 +642,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetProtocolChartLabelBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/protocol/%7Bprotocol%7D/label-breakdown",
 		Summary: "Get protocol timeseries chart data breakdown by label",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "protocol", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -652,7 +652,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetCategoryMetrics", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/metrics/%7Bmetric%7D/category/%7Bcategory%7D",
 		Summary: "Get category dimension data overview",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "category", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -662,7 +662,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetCategoryChart", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/category/%7Bcategory%7D",
 		Summary: "Get category historical timeseries chart data",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "category", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -672,7 +672,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetCategoryChartChainBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/category/%7Bcategory%7D/chain-breakdown",
 		Summary: "Get category timeseries chart data breakdown by chain",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "category", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -682,7 +682,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetCategoryChartProtocolBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/category/%7Bcategory%7D/protocol-breakdown",
 		Summary: "Get category timeseries chart data breakdown by protocol",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "category", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
 		},
@@ -692,7 +692,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetCategoryChainMetrics", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/metrics/%7Bmetric%7D/category/%7Bcategory%7D/chain/%7Bchain%7D",
 		Summary: "Get category chain dimension data overview",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "category", In: "path", Required: true, Type: "string"},
 			{Name: "chain", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
@@ -703,7 +703,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetCategoryChainChart", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/category/%7Bcategory%7D/chain/%7Bchain%7D",
 		Summary: "Get category chain historical timeseries chart data",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "category", In: "path", Required: true, Type: "string"},
 			{Name: "chain", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
@@ -714,7 +714,7 @@ var routeRegistry = map[string]route{
 		Service: "Dimensions", GoMethod: "GetCategoryChainChartProtocolBreakdown", DocsURL: "https://api-docs.defillama.com/#tag/dimensions/get/api/v2/chart/%7Bmetric%7D/category/%7Bcategory%7D/chain/%7Bchain%7D/protocol-breakdown",
 		Summary: "Get category chain timeseries chart data breakdown by protocol",
 		Params: []routeParam{
-			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "open-interest", "normalized-volume"}},
+			{Name: "metric", In: "path", Required: true, Type: "string", Enum: []string{"fees", "liquidations", "dexs", "derivatives", "options", "aggregators", "bridge-aggregators", "bridges", "open-interest", "normalized-volume"}},
 			{Name: "category", In: "path", Required: true, Type: "string"},
 			{Name: "chain", In: "path", Required: true, Type: "string"},
 			{Name: "dataType", In: "query", Required: false, Type: "string"},
@@ -838,10 +838,10 @@ var routeRegistry = map[string]route{
 		Service: "Yields", GoMethod: "GetLoopStrategies", DocsURL: "https://api-docs.defillama.com/#tag/yields/get/yields/v2/loops",
 		Summary: "Retrieve the latest data for all loop strategies",
 	},
-	"GET /yields/perps": {
-		Method: "GET", Path: "/yields/perps", Tier: "pro", Server: "https://pro-api.llama.fi",
-		Service: "Yields", GoMethod: "GetPerpFundingRates", DocsURL: "https://api-docs.defillama.com/#tag/yields/get/yields/perps",
-		Summary: "Funding rates and Open Interest of perps across exchanges, including both Decentralized and Centralized",
+	"GET /api/perpFundingRates": {
+		Method: "GET", Path: "/api/perpFundingRates", Tier: "pro", Server: "https://pro-api.llama.fi",
+		Service: "Yields", GoMethod: "GetPerpFundingRates", DocsURL: "https://api-docs.defillama.com/#tag/yields/get/api/perpFundingRates",
+		Summary: "Funding rates and open interest of perpetual futures (Binance and OKX)",
 	},
 	"GET /api/lstRates": {
 		Method: "GET", Path: "/api/lstRates", Tier: "pro", Server: "https://pro-api.llama.fi",
