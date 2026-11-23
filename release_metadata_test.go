@@ -7,7 +7,7 @@ import (
 )
 
 func TestReleaseMetadataMatchesCurrentRelease(t *testing.T) {
-	const releasedVersion = "1.2.2"
+	const releasedVersion = "1.2.3"
 	if Version != releasedVersion {
 		t.Fatalf("Version = %q, want %q", Version, releasedVersion)
 	}

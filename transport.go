@@ -92,7 +92,7 @@ func (t *transport) doWithRetry(ctx context.Context, r route, u, redacted string
 		operationID = t.nextOperationID.Add(1)
 	}
 	for attempt := 1; ; attempt++ {
-		receipt, err, diagnostic := t.doOnce(ctx, r, u, redacted, keyInURL, operationID, attempt, out)
+		receipt, diagnostic, err := t.doOnce(ctx, r, u, redacted, keyInURL, operationID, attempt, out)
 		if observer != nil {
 			observer(diagnostic)
 		}
@@ -165,7 +165,7 @@ func isTransientTransportError(err error) bool {
 		errors.Is(err, syscall.EPIPE)
 }
 
-func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, keyInURL bool, operationID uint64, attempt int, out any) (*ResponseReceipt, error, AttemptDiagnostic) {
+func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, keyInURL bool, operationID uint64, attempt int, out any) (*ResponseReceipt, AttemptDiagnostic, error) {
 	startedAt := time.Now().UTC()
 	apiKey := ""
 	if keyInURL {
@@ -174,7 +174,7 @@ func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, key
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		finalErr := &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
-		return nil, finalErr, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, time.Now().UTC(), false, 0, false, finalErr)
+		return nil, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, time.Now().UTC(), false, 0, false, finalErr), finalErr
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", t.cfg.userAgentHeader())
@@ -203,7 +203,7 @@ func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, key
 	resp, err := client.Do(req)
 	if err != nil {
 		finalErr := &TransportError{URL: redacted, Err: redactTransportError(err, redacted, apiKey)}
-		return nil, finalErr, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, time.Now().UTC(), false, 0, false, finalErr)
+		return nil, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, time.Now().UTC(), false, 0, false, finalErr), finalErr
 	}
 	capturedAt := time.Now().UTC()
 	originalBody := resp.Body
@@ -245,7 +245,7 @@ func (t *transport) doOnce(ctx context.Context, r route, u, redacted string, key
 			t.cfg.receiptObserver(captured)
 		}
 	}
-	return receipt, finalErr, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, body.completedAt, true, resp.StatusCode, body.complete, finalErr)
+	return receipt, newAttemptDiagnostic(operationID, r, redacted, attempt, startedAt, body.completedAt, true, resp.StatusCode, body.complete, finalErr), finalErr
 }
 
 type finalizedResponseBody struct {

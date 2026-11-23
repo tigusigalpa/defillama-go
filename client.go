@@ -11,7 +11,7 @@
 package defillama
 
 // Version is the package version, used in the default User-Agent.
-const Version = "1.2.2"
+const Version = "1.2.3"
 
 // Client is the DefiLlama API client. Construct it with New.
 type Client struct {

@@ -7,14 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-11-23
+
+### Fixed
+
+- Return `error` last from the internal transport attempt method to satisfy
+  the `revive` rule enforced by CI.
+
+### Changed
+
+- Update the SDK version and default User-Agent to `1.2.3`.
+
+## [1.2.2] - 2026-11-23
+
 ### Added
 
 - Add per-operation `WithAttemptObserver` diagnostics. It reports bounded
   per-attempt evidence to a caller-owned callback, including response-less
   transport failures, without changing receipt observer behavior or retaining
   an SDK-side history.
-
-## [1.2.2] - 2026-11-23
 
 ### Fixed
 
