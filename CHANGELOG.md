@@ -14,6 +14,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transport failures, without changing receipt observer behavior or retaining
   an SDK-side history.
 
+## [1.2.2] - 2026-11-23
+
+### Fixed
+
+- Restore Pro routing for `GetPools` and `GetPoolChart` when
+  `WithPreferProForFree(true)` is enabled. Their Pro overrides now use
+  `/yields/v1/pools` and `/yields/v1/chart/{pool}`.
+- Update `GetPerpFundingRates` to call `/api/perpFundingRates` in place of
+  the retired `/yields/perps` endpoint.
+- Accept `bridges` as a metric across all 19 Dimensions routes with a
+  `metric` path parameter.
+
+### Changed
+
+- Update the SDK version and default User-Agent to `1.2.2`.
+
 ## [1.2.1] - 2026-10-04
 
 ### Added

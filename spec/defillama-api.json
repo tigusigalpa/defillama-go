@@ -15560,12 +15560,12 @@
         ]
       }
     },
-    "/yields/perps": {
+    "/api/perpFundingRates": {
       "get": {
         "tags": [
           "yields"
         ],
-        "summary": "Funding rates and Open Interest of perps across exchanges, including both Decentralized and Centralized",
+        "summary": "Funding rates and open interest of perpetual futures (Binance and OKX)",
         "responses": {
           "200": {
             "description": "successful operation",

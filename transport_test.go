@@ -121,6 +121,59 @@ func TestPreferProForFreeOverride(t *testing.T) {
 	}
 }
 
+func TestPreferProForFreeUsesLegacyYieldsPaths(t *testing.T) {
+	_, c, log := testServer(t, okJSON, WithPreferProForFree(true))
+	ctx := context.Background()
+	if _, err := c.Yields().GetPools(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Yields().GetPoolChart(ctx, "test-pool"); err != nil {
+		t.Fatal(err)
+	}
+
+	wantPaths := []string{
+		"/SECRET_TEST_KEY_1/yields/v1/pools",
+		"/SECRET_TEST_KEY_1/yields/v1/chart/test-pool",
+	}
+	requests := log.all()
+	if len(requests) != len(wantPaths) {
+		t.Fatalf("requests = %d, want %d", len(requests), len(wantPaths))
+	}
+	for i, want := range wantPaths {
+		if got := requests[i].URL.Path; got != want {
+			t.Errorf("request %d path = %q, want %q", i+1, got, want)
+		}
+	}
+}
+
+func TestGetPerpFundingRatesUsesAPIPath(t *testing.T) {
+	_, c, log := testServer(t, okJSON)
+	if _, err := c.Yields().GetPerpFundingRates(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	requests := log.all()
+	if len(requests) != 1 {
+		t.Fatalf("requests = %d, want 1", len(requests))
+	}
+	if got, want := requests[0].URL.Path, "/SECRET_TEST_KEY_1/api/perpFundingRates"; got != want {
+		t.Errorf("path = %q, want %q", got, want)
+	}
+}
+
+func TestDimensionsGetChartAcceptsBridges(t *testing.T) {
+	_, c, log := testServer(t, okJSON)
+	if _, err := c.Dimensions().GetChart(context.Background(), "bridges", nil); err != nil {
+		t.Fatal(err)
+	}
+	requests := log.all()
+	if len(requests) != 1 {
+		t.Fatalf("requests = %d, want 1", len(requests))
+	}
+	if got, want := requests[0].URL.Path, "/SECRET_TEST_KEY_1/api/v2/chart/bridges"; got != want {
+		t.Errorf("path = %q, want %q", got, want)
+	}
+}
+
 func TestProRouteWithoutKeyFailsLocally(t *testing.T) {
 	srv, _, log := testServer(t, okJSON)
 	c2, err := New(WithBaseURLsForTesting(map[string]string{
